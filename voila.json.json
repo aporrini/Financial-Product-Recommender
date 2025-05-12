@@ -1,0 +1,7 @@
+{
+  "TagRemovePreprocessor": {
+    "enabled": true,
+    "remove_input_tags": ["remove_input"],
+    "remove_cell_tags": ["remove_cell"]
+  }
+}
