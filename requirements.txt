@@ -5,4 +5,6 @@ scikit-learn
 pandas
 matplotlib
 requests
-pyexcel
+io
+pyexcel-io
+pyexcel-xls
