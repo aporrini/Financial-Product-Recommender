@@ -1,9 +1,13 @@
-voila
-ipywidgets
-xgboost
-scikit-learn
 pandas
+numpy
+seaborn
 matplotlib
+scikit-learn
+xgboost
+tensorflow
+ipywidgets
 requests
 pyexcel-io
 pyexcel-xls
+voila
+xlrd
