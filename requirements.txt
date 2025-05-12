@@ -4,3 +4,5 @@ xgboost
 scikit-learn
 pandas
 matplotlib
+requests
+pyexcel
