@@ -1,6 +1,8 @@
 # MiFID Voilà App
 
 Questo notebook (`Final_proj.ipynb`) gira su Voilà ed è disponibile anche su Binder.
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/aporrini/Financial-Product-Recommender/main?urlpath=voila%2Frender%2FFinal_proj.ipynb)
+
 
 ## Installazione locale
 
