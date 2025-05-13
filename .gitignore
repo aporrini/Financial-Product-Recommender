@@ -5,3 +5,7 @@ venv/
 *.env
 *.py[cod]
 *.log
+
+# Keras-Tuner results
+my_dir/
+
