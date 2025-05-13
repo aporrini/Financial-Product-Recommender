@@ -264,8 +264,10 @@ python-json-logger==3.3.0
     # via jupyter-events
 pytz==2025.2
     # via pandas
-pywin32==310
-    # via jupyter-core
+pywin32==310 ; platform_system == "Windows"
+    # via
+    #   -r requirements.in
+    #   jupyter-core
 pywinpty==2.0.15
     # via
     #   jupyter-server

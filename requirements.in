@@ -14,3 +14,7 @@ pyexcel-xls
 pyexcel-io
 voila
 xlrd
+
+# Windows-only dependency
+pywin32; platform_system == 'Windows'
+
