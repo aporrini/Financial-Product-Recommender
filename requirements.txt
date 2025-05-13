@@ -268,8 +268,9 @@ pywin32==310 ; platform_system == "Windows"
     # via
     #   -r requirements.in
     #   jupyter-core
-pywinpty==2.0.15
+pywinpty==2.0.15 ; platform_system == "Windows"
     # via
+    #   -r requirements.in
     #   jupyter-server
     #   jupyter-server-terminals
     #   terminado

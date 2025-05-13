@@ -17,4 +17,4 @@ xlrd
 
 # Windows-only dependency
 pywin32; platform_system == 'Windows'
-
+pywinpty; platform_system == 'Windows'
