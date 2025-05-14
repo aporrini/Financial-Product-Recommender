@@ -1,7 +1,10 @@
 {
   "TagRemovePreprocessor": {
     "enabled": true,
-    "remove_input_tags": [],
+    "remove_input_tags": ["remove_cell"],
     "remove_output_tags": ["remove_output"]
+  },
+  "VoilaConfiguration": {
+    "strip_sources": true
   }
 }
