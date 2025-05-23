@@ -1,13 +1,62 @@
-# MiFID Voilà App
+# 💼 Financial Product Recommender
 
-Questo notebook (`Final_proj.ipynb`) gira su Voilà ed è disponibile anche su Binder.
-[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/aporrini/Financial-Product-Recommender/main?urlpath=voila%2Frender%2FFinal_proj.ipynb)
+This project is a Streamlit web application that helps users identify the most suitable financial product based on their profile.
 
+The model uses machine learning techniques to analyze user data (such as age, income, risk propensity, and more) and returns a personalized recommendation.
 
-## Installazione locale
+---
 
-```bash
-git clone https://github.com/aporrini/Financial-Product-Recommender.git
-cd mifid-voila-app
-pip install -r requirements.txt
-voila Final_proj.ipynb
+## 🚀 Try the App
+
+[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://streamlit.io/cloud)
+
+_Deploy this repo on [Streamlit Cloud](https://streamlit.io/cloud) to run the app directly in your browser._
+
+---
+
+## 🧠 How it Works
+
+- Users fill out a short questionnaire
+- A trained model runs in the background to predict their ideal financial product
+- The app displays a personalized output generated from the model
+
+---
+
+## 🗂️ Repository Structure
+
+```
+├── app.py                  # Streamlit app
+├── Final_proj.ipynb        # Original Jupyter Notebook
+├── requirements.txt        # Python dependencies
+└── .voila.json             # (Optional, legacy from Voila)
+```
+
+---
+
+## ⚙️ How to Run Locally
+
+1. Clone the repo:
+   ```bash
+   git clone https://github.com/aporrini/Financial-Product-Recommender.git
+   cd Financial-Product-Recommender
+   ```
+
+2. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. Run the app:
+   ```bash
+   streamlit run app.py
+   ```
+
+---
+
+## 📬 Feedback
+
+If you find a bug or want to suggest improvements, feel free to open an issue or pull request.
+
+---
+
+© 2025 [Alessio Porrini](https://github.com/aporrini)
