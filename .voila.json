@@ -6,6 +6,7 @@
     "show_tracebacks": false
   },
   "TagRemovePreprocessor": {
-    "enabled": false
+    "enabled": true,
+    "remove_cell_tags": ["remove_cell"]
   }
 }
