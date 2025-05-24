@@ -7,8 +7,9 @@ The model uses machine learning techniques to analyze user data (such as age, in
 ---
 
 ## 🚀 Try the App
+###
+[![Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://financial-instrument-recommender-fintech-class-2025.streamlit.app/)
 
-[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://streamlit.io/cloud)
 
 _Deploy this repo on [Streamlit Cloud](https://streamlit.io/cloud) to run the app directly in your browser._
 

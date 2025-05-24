@@ -1,8 +1,7 @@
 streamlit
 pandas
 numpy
+requests
+pyexcel-xls
 scikit-learn
-joblib
-matplotlib
-seaborn
 xgboost
