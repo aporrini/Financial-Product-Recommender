@@ -1,0 +1,12 @@
+{
+  "strip_sources": true,
+  "VoilaConfiguration": {
+    "template": "material",
+    "enable_nbextensions": false,
+    "show_tracebacks": false
+  },
+  "TagRemovePreprocessor": {
+    "enabled": true,
+    "remove_cell_tags": ["remove_cell"]
+  }
+}
