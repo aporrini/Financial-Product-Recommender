@@ -1,133 +1,112 @@
-# app.py - Streamlit application with pre-trained models loaded from GitHub
+# app.py
+
 import streamlit as st
-import joblib
-from xgboost import XGBRegressor, XGBClassifier  # ensure classes for unpickling
-from sklearn.ensemble import RandomForestClassifier, StackingClassifier
 import pandas as pd
 import numpy as np
 import warnings
 import io
 import requests
 import joblib
+
+# Ensure unpickling works by importing all needed classes:
+from xgboost import XGBRegressor, XGBClassifier
+from sklearn.ensemble import RandomForestClassifier, StackingClassifier
 from pyexcel_xls import get_data
 
-# Suppress warnings for a clean UI
-warnings.filterwarnings('ignore')
+warnings.filterwarnings("ignore")
+st.set_page_config(page_title="Financial Product Recommender", layout="centered")
 
-# --- MODEL LOADING ---
+# --- 1) LOAD MODELS ---
 @st.cache_resource
 def load_models():
     base_url = "https://raw.githubusercontent.com/aporrini/Financial-Product-Recommender/main/models/"
-    def load_pickle(name):
-        url = base_url + name
-        data = requests.get(url).content
-        return joblib.load(io.BytesIO(data))
+    def _ld(name):
+        b = requests.get(base_url + name).content
+        return joblib.load(io.BytesIO(b))
+    risk   = _ld("risk_model.pkl")
+    inc    = _ld("stack_income.pkl")
+    accum  = _ld("stack_accum.pkl")
+    return risk, inc, accum, 0.5, 0.5
 
-    risk_model    = load_pickle('risk_model.pkl')
-    stack_income  = load_pickle('stack_income.pkl')
-    stack_accum   = load_pickle('stack_accum.pkl')
-    thr_i, thr_a  = 0.5, 0.5
-    return risk_model, stack_income, stack_accum, thr_i, thr_a
+risk_model, stack_income, stack_accum, thr_i, thr_a = load_models()
 
-risk_model, stack_income, stack_accum, best_t_i, best_t_a = load_models()
-
-# --- DATA LOADING ---
+# --- 2) LOAD & AUGMENT DATA ---
 @st.cache_data
 def load_data():
     url = (
-        "https://raw.githubusercontent.com/aporrini/Financial-Product-Recommender/"
-        "release-1.0/Dataset2_Needs.xls"
+      "https://raw.githubusercontent.com/aporrini/Financial-Product-Recommender/"
+      "release-1.0/Dataset2_Needs.xls"
     )
     xls = get_data(io.BytesIO(requests.get(url).content))
-    needs = pd.DataFrame(xls['Needs'][1:], columns=xls['Needs'][0])
-    products = pd.DataFrame(xls['Products'][1:], columns=xls['Products'][0])
+    needs    = pd.DataFrame(xls["Needs"][1:],    columns=xls["Needs"][0])
+    products = pd.DataFrame(xls["Products"][1:], columns=xls["Products"][0])
 
-    # Add brute-force new products
-    new_products = pd.DataFrame({
-        'IDProduct': [12, 13, 14, 15, 16],
-        'Type':       [0,   0,  1,  1,  0],
-        'Risk':       [0.55,0.70,0.70,0.15,0.85]
+    # add your 5 new products
+    new = pd.DataFrame({
+      "IDProduct":[12,13,14,15,16],
+      "Type":     [0,  0,  1,  1,  0],
+      "Risk":     [0.55,0.70,0.70,0.15,0.85]
     })
-    products = pd.concat([products, new_products], ignore_index=True)
-    # Cleanup unwanted risk
-    products = products.loc[products['Risk'] != 0.12]
+    products = pd.concat([products, new], ignore_index=True)
+    products = products[products["Risk"] != 0.12]
 
-    # Map product names
-    product_name_map = {
-        1: "Balanced Mutual Fund",
-        2: "Income Conservative Unit-Linked (Life Insurance)",
-        3: "Fixed Income Mutual Fund",
-        4: "Balanced High Dividend Mutual Fund",
-        5: "Balanced Mutual Fund",
-        6: "Defensive Flexible Allocation Unit-Linked (Life Insurance)",
-        7: "Aggressive Flexible Allocation Unit-Linked (Life Insurance)",
-        8: "Balanced Flexible Allocation Unit-Linked (Life Insurance)",
-        9: "Cautious Allocation Segregated Account",
-        10: "Fixed Income Segregated Account",
-        11: "Total Return Aggressive Allocation Segregated Account",
-        12: "Global Diversified Income Fund",
-        13: "Emerging Markets High Yield Bond Fund",
-        14: "Sustainable Growth Equity Portfolio",
-        15: "Short-Term Government Bond Accumulation Fund",
-        16: "Tranche Equity CDO"
+    # name map including new IDs
+    name_map = {
+      1:"Balanced Mutual Fund",
+      2:"Income Conservative Unit-Linked (Life Insurance)",
+      3:"Fixed Income Mutual Fund",
+      4:"Balanced High Dividend Mutual Fund",
+      5:"Balanced Mutual Fund",
+      6:"Defensive Flexible Allocation Unit-Linked (Life Insurance)",
+      7:"Aggressive Flexible Allocation Unit-Linked (Life Insurance)",
+      8:"Balanced Flexible Allocation Unit-Linked (Life Insurance)",
+      9:"Cautious Allocation Segregated Account",
+      10:"Fixed Income Segregated Account",
+      11:"Total Return Aggressive Allocation Segregated Account",
+      12:"Global Diversified Income Fund",
+      13:"Emerging Markets High Yield Bond Fund",
+      14:"Sustainable Growth Equity Portfolio",
+      15:"Short-Term Government Bond Accumulation Fund",
+      16:"Tranche Equity CDO"
     }
-    products['ProductName'] = products['IDProduct'].astype(int).map(product_name_map)
-    # Assume 'Type' and 'Risk' columns exist
+    products["ProductName"] = products["IDProduct"].astype(int).map(name_map)
     return needs, products
 
 needs_df, products_df = load_data()
 
-# --- FEATURE ENGINEERING ---
-def feature_engineering(input_dict):
-    age = input_dict['Age']
-    gender = input_dict['Gender']
-    family = input_dict['FamilyMembers']
-    edu = input_dict['FinancialEducation']
-    income_val = input_dict['Income']
-    wealth_val = input_dict['Wealth']
-    risk_val = input_dict['RiskPropensity']
-    feat = {
-        'Age': age,
-        'Gender': gender,
-        'FamilyMembers': family,
-        'FinancialEducation': edu,
-        'RiskPropensity': risk_val,
-        'Wealth_log': np.log1p(wealth_val),
-        'Income_log': np.log1p(income_val),
-        'Income_Wealth_Ratio_log': np.log1p(income_val/wealth_val) if wealth_val>0 else np.log1p(income_val),
-        'Is_Single': int(family==1),
-        'Is_Senior': int(age>65),
-        'Has_Education': int(edu>0.1),
-        'Risk_Age_Interaction': risk_val*age
-    }
-    return pd.DataFrame([feat])
+# --- 3) FEATURE ENGINEERING ---
+def feature_engineering(d: dict):
+    a,g,f = d["Age"], d["Gender"], d["FamilyMembers"]
+    edu,inc,wel,rp = d["FinancialEducation"], d["Income"], d["Wealth"], d["RiskPropensity"]
+    return pd.DataFrame([{
+      "Age":a, "Gender":g, "FamilyMembers":f, "FinancialEducation":edu, "RiskPropensity":rp,
+      "Wealth_log":np.log1p(wel), "Income_log":np.log1p(inc),
+      "Income_Wealth_Ratio_log": np.log1p(inc/wel) if wel>0 else np.log1p(inc),
+      "Is_Single":int(f==1), "Is_Senior":int(a>65), "Has_Education":int(edu>0.1),
+      "Risk_Age_Interaction":rp*a
+    }])
 
-# --- RECOMMENDATION FUNCTION ---
-def recommend_products(input_data, epsilon=0.05):
-    df = feature_engineering(input_data)
-    prob_i = stack_income.predict_proba(df)[0,1]
-    prob_a = stack_accum.predict_proba(df)[0,1]
-    pred_i = int(prob_i>=best_t_i)
-    pred_a = int(prob_a>=best_t_a)
+# --- 4) RECOMMENDATION FUNCTION ---
+def recommend_products(d: dict, eps=0.05):
+    df = feature_engineering(d)
+    pi = stack_income.predict_proba(df)[0,1]
+    pa = stack_accum.predict_proba(df)[0,1]
     recs = []
-    if pred_i:
-        sr = input_data['RiskPropensity']
-        pool = products_df[(products_df['Type']==0)&(products_df['Risk']<=sr+epsilon)]
+    if pi>=thr_i:
+        pool = products_df[(products_df["Type"]==0)&(products_df["Risk"]<=d["RiskPropensity"]+eps)]
         if not pool.empty:
-            best = pool.loc[pool['Risk'].idxmax()]
-            recs.append({'Type':'Income','ID':int(best['IDProduct']),'Name':best['ProductName'],'Risk':best['Risk'],'Prob':round(prob_i,3)})
-    if pred_a:
-        sr = input_data['RiskPropensity']
-        pool = products_df[(products_df['Type']==1)&(products_df['Risk']<=sr+epsilon)]
+            b = pool.loc[pool["Risk"].idxmax()]
+            recs.append({"Type":"Income","ID":int(b.IDProduct),"Name":b.ProductName,"Risk":b.Risk,"Prob":round(pi,3)})
+    if pa>=thr_a:
+        pool = products_df[(products_df["Type"]==1)&(products_df["Risk"]<=d["RiskPropensity"]+eps)]
         if not pool.empty:
-            best = pool.loc[pool['Risk'].idxmax()]
-            recs.append({'Type':'Accumulation','ID':int(best['IDProduct']),'Name':best['ProductName'],'Risk':best['Risk'],'Prob':round(prob_a,3)})
+            b = pool.loc[pool["Risk"].idxmax()]
+            recs.append({"Type":"Accumulation","ID":int(b.IDProduct),"Name":b.ProductName,"Risk":b.Risk,"Prob":round(pa,3)})
     if not recs:
-        recs.append({'Type':'None','ID':0,'Name':'No Investment Needed','Risk':'-','Prob':'-'})
+        recs.append({"Type":"None","ID":0,"Name":"No Investment Needed","Risk":"-","Prob":"-"})
     return pd.DataFrame(recs)
 
-
-# --- QUESTIONNAIRES (verbatim) ---
+# --- 5) YOUR QUESTIONS (verbatim) ---
 financial_lit = [
   {'question':'What is your education title?',
    'options':{'No':0.0,'High School Diploma':0.015,'Bachelor Degree':0.025,
@@ -185,15 +164,14 @@ risk_qs = [
               'Exit the markets':0.0,'Maintain original strategy':0.15}}
 ]
 
-
-# --- STREAMLIT UI ---
+# --- 6) STREAMLIT UI ---
 st.markdown("---")
 st.header("🔹 Personal Profile")
 age    = st.slider("Age",18,100,35)
 gender = st.radio("Gender",["Male","Female"])
 family = st.slider("Family Members",1,10,2)
-income = st.number_input("Income (€)",min_value=0,value=50000,step=1000)
-wealth = st.number_input("Wealth (€)",min_value=0,value=100000,step=1000)
+income = st.number_input("Income (€)",0,200000,50000,1000)
+wealth = st.number_input("Wealth (€)",0,500000,100000,1000)
 
 st.markdown("---")
 st.header("🔹 Financial Literacy Questionnaire")
@@ -208,21 +186,20 @@ for q in risk_qs:
     rp_ans[q['question']] = st.selectbox(q['question'], list(q['options'].keys()))
 
 if st.button("Get Recommendation"):
-    # compute scores
     lit_vals = np.array([q['options'][fl_ans[q['question']]] for q in financial_lit])
     lit_score = lit_vals.sum()
     rp_vals  = np.array([q['options'][rp_ans[q['question']]] for q in risk_qs])
     rp_score = rp_vals.sum()
-    # model risk
-    user = {'Age':age,'Gender':1 if gender=="Female" else 0,'FamilyMembers':family,
-            'FinancialEducation':lit_score,'Income':income,'Wealth':wealth,'RiskPropensity':rp_score}
+    user = {
+      "Age":age,"Gender":1 if gender=="Female" else 0,"FamilyMembers":family,
+      "FinancialEducation":lit_score,"Income":income,"Wealth":wealth,"RiskPropensity":rp_score
+    }
     model_r = risk_model.predict(feature_engineering(user))[0]
     comb_r   = 0.7*model_r + 0.3*rp_score
-    # display
     st.subheader("📊 Scores")
     st.write(f"• Financial Literacy: {lit_score:.3f}")
     st.write(f"• Survey Risk      : {rp_score:.3f}")
     st.write(f"• Model Risk       : {model_r:.3f}")
     st.write(f"• Combined Risk    : {comb_r:.3f}")
     st.subheader("📈 Recommendations")
-    st.table(recommend(user,eps=0.05))
+    st.table(recommend_products(user, epsilon=0.05))
