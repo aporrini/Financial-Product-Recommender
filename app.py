@@ -1,4 +1,3 @@
-```python
 # app.py - Streamlit application for Financial Product Recommender (simplified UI)
 import streamlit as st
 import pandas as pd
@@ -158,5 +157,5 @@ if st.button("Get Recommendation"):
     st.write(f"- Model risk score: {model_r:.3f}")
     st.write(f"- Combined risk score: {comb_r:.3f}")
     st.table(rec_df)
-```
+
 
