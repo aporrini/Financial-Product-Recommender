@@ -1,4 +1,4 @@
-# app.py
+# app.py – Streamlit Financial Product Recommender with proper feature scaling
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -10,29 +10,18 @@ from sklearn.preprocessing import MinMaxScaler
 from pyexcel_xls import get_data
 
 warnings.filterwarnings('ignore')
+# Must be first Streamlit command
 st.set_page_config(page_title="Financial Product Recommender", layout="centered")
 
-warnings.filterwarnings('ignore')
-st.set_page_config(page_title="Financial Product Recommender", layout="centered")
-
-# --- MODEL LOADING (local fallback) ---
+# ------------------
+# 1) LOAD MODELS
+# ------------------
 @st.cache_resource
 def load_models():
-    # Try local files first
-    if os.path.isdir("models"):
-        risk_model   = joblib.load("models/risk_model.pkl")
-        stack_income = joblib.load("models/stack_income.pkl")
-        stack_accum  = joblib.load("models/stack_accum.pkl")
-    else:
-        # Fallback: download from GitHub main branch
-        base = "https://raw.githubusercontent.com/aporrini/Financial-Product-Recommender/main/models_trained/"
-        def _dl(name):
-            data = requests.get(base+name).content
-            return joblib.load(io.BytesIO(data))
-        risk_model   = _dl("risk_model.pkl")
-        stack_income = _dl("stack_income.pkl")
-        stack_accum  = _dl("stack_accum.pkl")
-    # fixed thresholds
+    mdl_dir = os.path.join(os.path.dirname(__file__), 'models_trained')
+    risk_model   = joblib.load(os.path.join(mdl_dir, 'risk_model.pkl'))
+    stack_income = joblib.load(os.path.join(mdl_dir, 'stack_income.pkl'))
+    stack_accum  = joblib.load(os.path.join(mdl_dir, 'stack_accum.pkl'))
     return risk_model, stack_income, stack_accum, 0.5, 0.5
 
 risk_model, stack_income, stack_accum, thr_i, thr_a = load_models()
@@ -110,24 +99,30 @@ eng_scaler  = MinMaxScaler().fit(df[eng_cols])
 # 4) FEATURE ENGINEERING
 # ------------------
 def make_features(d: dict):
-    # raw dict -> two DataFrames for base & engineered
+    # Build raw features DataFrame
     raw = {
-        'Age':d['Age'],'Gender':d['Gender'],'FamilyMembers':d['FamilyMembers'],
-        'FinancialEducation':d['FinancialEducation'],'Income':d['Income'],'Wealth':d['Wealth']
+        'Age': d['Age'],
+        'Gender': d['Gender'],
+        'FamilyMembers': d['FamilyMembers'],
+        'FinancialEducation': d['FinancialEducation'],
+        'Income': d['Income'],
+        'Wealth': d['Wealth']
     }
     X_raw = pd.DataFrame([raw])
-    # engineered
+    # Engineered columns
     X_raw['Wealth_log'] = np.log1p(X_raw['Wealth'])
     X_raw['Income_log'] = np.log1p(X_raw['Income'])
     ratio = X_raw['Income'] / X_raw['Wealth'].replace(0, np.nan)
     X_raw['Income_Wealth_Ratio_log'] = np.log1p(ratio.fillna(X_raw['Income'].max()))
-    X_raw['Is_Single'] = (X_raw['FamilyMembers']==1).astype(int)
-    X_raw['Is_Senior'] = (X_raw['Age']>65).astype(int)
-    X_raw['Has_Education'] = (X_raw['FinancialEducation']>0).astype(int)
+    X_raw['Is_Single'] = (X_raw['FamilyMembers'] == 1).astype(int)
+    X_raw['Is_Senior'] = (X_raw['Age'] > 65).astype(int)
+    X_raw['Has_Education'] = (X_raw['FinancialEducation'] > 0).astype(int)
     X_raw['Risk_Age_Interaction'] = d['RiskPropensity'] * d['Age']
-    # scale
-    Xb = pd.DataFrame(base_scaler.transform(X_raw[base_cols]), columns=base_cols)
-    Xe = pd.DataFrame(eng_scaler.transform(X_raw[eng_cols]), columns=eng_cols)
+    # Scale base and engineered
+    Xb_int = pd.DataFrame(base_scaler.transform(X_raw[base_cols]), columns=base_cols)
+    Xe     = pd.DataFrame(eng_scaler.transform(X_raw[eng_cols]), columns=eng_cols)
+    # Rename for risk_model (trained on 'Income ')
+    Xb = Xb_int.rename(columns={'Income': 'Income '})
     return Xb, Xe
 
 # ------------------
@@ -179,6 +174,7 @@ risk_qs = [
 # 7) STREAMLIT UI
 # ------------------
 st.header("Financial Product Recommender")
+st.subheader("MiFID Questionnaire")
 col1, col2 = st.columns(2)
 with col1:
     age    = st.slider("Age",18,100,35)
@@ -189,17 +185,48 @@ with col2:
     wealth = st.number_input("Wealth (€)",0,500000,100000,1000)
 
 st.divider()
-st.subheader("Financial Literacy Questionnaire")
+
 fl_ans = {q['question']: st.selectbox(q['question'], list(q['options'].keys())) for q in financial_lit}
 st.subheader("Risk Propensity Questionnaire")
 rp_ans = {q['question']: st.selectbox(q['question'], list(q['options'].keys())) for q in risk_qs}
 
 if st.button("Get Recommendation"):
+    # compute questionnaire scores
     lit_score = sum(q['options'][fl_ans[q['question']]] for q in financial_lit)
     rp_score  = sum(q['options'][rp_ans[q['question']]] for q in risk_qs)
-    user = {'Age':age,'Gender':1 if gender=='Female' else 0,'FamilyMembers':family,
-            'FinancialEducation':lit_score,'Income':income,'Wealth':wealth,'RiskPropensity':rp_score}
-    model_risk = risk_model.predict(make_base(user))[0]
-    combined   = 0.7*model_risk + 0.3*rp_score
-    st.write(f"Literacy {lit_score:.3f}, Survey risk {rp_score:.3f}, Model risk {model_risk:.3f}, Combined {combined:.3f}")
-    st.table(recommend_products({**user,'RiskPropensity':combined}))
+    # build user dict
+    user = {
+        'Age': age,
+        'Gender': 1 if gender == 'Female' else 0,
+        'FamilyMembers': family,
+        'FinancialEducation': lit_score,
+        'Income': income,
+        'Wealth': wealth,
+        'RiskPropensity': rp_score
+    }
+    # feature engineering and model predictions
+    Xb, Xe = make_features(user)
+    model_risk = risk_model.predict(Xb)[0]
+    combined   = 0.7 * model_risk + 0.3 * rp_score
+
+    # Convert to discrete MiFID II levels
+    edu_lvl  = min(max(int(np.ceil(lit_score * 6)), 1), 6)
+    risk_lvl = min(max(int(np.ceil(combined * 4)), 1), 4)
+
+    # Display scores in a cleaner UI
+    st.subheader("📊 Scores")
+    scol1, scol2, scol3, scol4 = st.columns(4)
+    scol1.metric("Literacy Score", f"{lit_score:.2f}", delta=None)
+    scol2.metric("Survey Risk", f"{rp_score:.2f}", delta=None)
+    scol3.metric("Model Risk", f"{model_risk:.2f}", delta=None)
+    scol4.metric("Combined Risk", f"{combined:.2f}", delta=None)
+
+    st.subheader("💡 MiFID II Levels")
+    lcol1, lcol2 = st.columns(2)
+    lcol1.metric("Financial Literacy Level", f"{edu_lvl} / 6")
+    lcol2.metric("Risk Propensity Level", f"{risk_lvl} / 4")
+
+    # Show recommendations table
+    st.subheader("📈 Recommendations")
+    rec_df = recommend_products({**user, 'RiskPropensity': combined})
+    st.table(rec_df)
