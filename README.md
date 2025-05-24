@@ -6,14 +6,6 @@ The model uses machine learning techniques to analyze user data (such as age, in
 
 ---
 
-# 💼 Financial Product Recommender
-
-This project is a Streamlit web application that helps users identify the most suitable financial product based on their profile.
-
-The model uses machine learning techniques to analyze user data (such as age, income, risk propensity, and more) and returns a personalized recommendation.
-
----
-
 # MiFID Voilà App
 
 Questo notebook (`Final_proj.ipynb`) gira su Voilà ed è disponibile anche su Binder.
