@@ -28,8 +28,11 @@ _Deploy this repo on [Streamlit Cloud](https://streamlit.io/cloud) to run the ap
 ```
 ├── app.py                  # Streamlit app
 ├── Final_proj.ipynb        # Original Jupyter Notebook
+├── Dataset2_Needs.xls      # Dataset on which we trained the ML models
 ├── requirements.txt        # Python dependencies
-└── .voila.json             # (Optional, legacy from Voila)
+├── README.md               # README document
+└── models_trained          # Folder with the weights of the main trained models
+   └── ...              
 ```
 
 ---
