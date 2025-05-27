@@ -179,10 +179,10 @@ col1, col2 = st.columns(2)
 with col1:
     age    = st.slider("Age",18,100,35)
     gender = st.radio("Gender",["Male","Female"])
-    family = st.slider("Family Members",1,10,2)
+    family = st.slider("Family Members",1,8,2)
 with col2:
-    income = st.number_input("Income (€)",0,200000,50000,1000)
-    wealth = st.number_input("Wealth (€)",0,500000,100000,1000)
+    income = st.number_input("Income (€)",0,2000000,50000,1000)
+    wealth = st.number_input("Wealth (€)",0,10000000,100000,1000)
 
 st.divider()
 
